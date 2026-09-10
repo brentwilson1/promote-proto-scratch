@@ -26,7 +26,6 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: write
-      workflows: write
     outputs:
       tag: ${{ steps.push_tag.outputs.tag }}
       sha: ${{ steps.push_tag.outputs.sha }}
@@ -35,9 +34,10 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Push annotated tag with the DEFAULT GITHUB_TOKEN
+      - name: Create annotated tag via GIT DATA API with the DEFAULT GITHUB_TOKEN
         id: push_tag
         env:
+          GH_TOKEN: ${{ github.token }}
           ORG: ${{ inputs.org }}
           ENV: ${{ inputs.env }}
           IN_SHA: ${{ inputs.sha }}
@@ -48,11 +48,12 @@ jobs:
           LAST=$(git tag --list "${PREFIX}*" | sed "s|^${PREFIX}||" | grep -E '^[0-9]+$' | sort -n | tail -1 || true)
           NEXT=$(( ${LAST:-0} + 1 ))
           TAG="${PREFIX}${NEXT}"
-          git config user.name  "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git tag -a "$TAG" -m "promote ${ORG}/${ENV} -> ${TARGET_SHA}" "$TARGET_SHA"
-          git push origin "refs/tags/${TAG}"
-          echo "pushed tag ${TAG} at ${TARGET_SHA} using \$GITHUB_TOKEN"
+          OBJ=$(gh api -X POST "repos/${GITHUB_REPOSITORY}/git/tags" \
+                  -f tag="$TAG" -f message="promote ${ORG}/${ENV} -> ${TARGET_SHA}" \
+                  -f object="$TARGET_SHA" -f type=commit --jq .sha)
+          gh api -X POST "repos/${GITHUB_REPOSITORY}/git/refs" \
+                  -f ref="refs/tags/${TAG}" -f sha="$OBJ" --jq .ref
+          echo "created tag ${TAG} at ${TARGET_SHA} via API using \$GITHUB_TOKEN"
           echo "tag=${TAG}" >> "$GITHUB_OUTPUT"
           echo "sha=${TARGET_SHA}" >> "$GITHUB_OUTPUT"
 
