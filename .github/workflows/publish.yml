@@ -1,0 +1,36 @@
+name: publish
+
+on:
+  push:
+    tags:
+      - '*/prod/v*'
+  workflow_call:
+    inputs:
+      org:
+        required: true
+        type: string
+      env:
+        required: true
+        type: string
+      sha:
+        required: true
+        type: string
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    environment: prod
+    steps:
+      - name: Echo context and inputs
+        run: |
+          echo "=== how did we get here ==="
+          echo "event_name = ${{ github.event_name }}"
+          echo "ref        = ${{ github.ref }}"
+          echo "ref_type   = ${{ github.ref_type }}"
+          echo "sha        = ${{ github.sha }}"
+          echo "actor      = ${{ github.actor }}"
+          echo "run_id     = ${{ github.run_id }}"
+          echo "=== workflow_call inputs (empty on push) ==="
+          echo "inputs.org = '${{ inputs.org }}'"
+          echo "inputs.env = '${{ inputs.env }}'"
+          echo "inputs.sha = '${{ inputs.sha }}'"

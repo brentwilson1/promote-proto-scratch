@@ -1,0 +1,64 @@
+name: promote
+
+on:
+  workflow_dispatch:
+    inputs:
+      org:
+        description: toy org slug
+        required: true
+        type: string
+        default: acme
+      env:
+        description: target env
+        required: true
+        type: string
+        default: prod
+      sha:
+        description: optional sha to tag (defaults to HEAD of default branch)
+        required: false
+        type: string
+
+permissions:
+  contents: read
+
+jobs:
+  tag:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    outputs:
+      tag: ${{ steps.push_tag.outputs.tag }}
+      sha: ${{ steps.push_tag.outputs.sha }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Push annotated tag with the DEFAULT GITHUB_TOKEN
+        id: push_tag
+        env:
+          ORG: ${{ inputs.org }}
+          ENV: ${{ inputs.env }}
+          IN_SHA: ${{ inputs.sha }}
+        run: |
+          set -euo pipefail
+          TARGET_SHA="${IN_SHA:-$GITHUB_SHA}"
+          PREFIX="${ORG}/${ENV}/v"
+          LAST=$(git tag --list "${PREFIX}*" | sed "s|^${PREFIX}||" | grep -E '^[0-9]+$' | sort -n | tail -1 || true)
+          NEXT=$(( ${LAST:-0} + 1 ))
+          TAG="${PREFIX}${NEXT}"
+          git config user.name  "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git tag -a "$TAG" -m "promote ${ORG}/${ENV} -> ${TARGET_SHA}" "$TARGET_SHA"
+          git push origin "refs/tags/${TAG}"
+          echo "pushed tag ${TAG} at ${TARGET_SHA} using \$GITHUB_TOKEN"
+          echo "tag=${TAG}" >> "$GITHUB_OUTPUT"
+          echo "sha=${TARGET_SHA}" >> "$GITHUB_OUTPUT"
+
+  call-publish:
+    needs: tag
+    uses: ./.github/workflows/publish.yml
+    with:
+      org: ${{ inputs.org }}
+      env: ${{ inputs.env }}
+      sha: ${{ needs.tag.outputs.sha }}
