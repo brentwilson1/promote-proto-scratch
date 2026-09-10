@@ -29,3 +29,17 @@ bypass actor here — the API rejects it with
 
 Immutability holds against everyone, including the repo owner: deleting or moving
 `acme/prod/v1` is rejected with `GH013` with `bypass_actors: []`.
+
+## 8. Hard limit found: the default token cannot tag across a workflow-file change
+
+| # | Claim | Result | Run |
+|---|-------|--------|-----|
+| 8a | `git push` of a tag at an older sha (workflow files differ from main) | rejected: ``refusing to allow a GitHub App to create or update workflow `.github/workflows/promote.yml` without `workflows` permission`` | [34425881563](https://github.com/brentwilson1/promote-proto-scratch/actions/runs/34425881563) |
+| 8b | `workflows: write` added to the job's `permissions:` | invalid — workflow fails to parse: `Unexpected value 'workflows'`. Not a GITHUB_TOKEN scope. | [34425973117](https://github.com/brentwilson1/promote-proto-scratch/actions/runs/34425973117) |
+| 8c | Same tag via the git data API (`POST /git/tags`) at the older sha | `HTTP 403 Resource not accessible by integration` | [34426036398](https://github.com/brentwilson1/promote-proto-scratch/actions/runs/34426036398) |
+| 8d | Same API call at current HEAD (workflow files match) | succeeds | [34426085619](https://github.com/brentwilson1/promote-proto-scratch/actions/runs/34426085619) |
+
+So the restriction is on the *content being introduced*, not on the mechanism —
+both git and the REST API behave identically. Promoting the current HEAD is fine;
+promoting an older sha from before a workflow change is not, and no permission
+setting fixes it.

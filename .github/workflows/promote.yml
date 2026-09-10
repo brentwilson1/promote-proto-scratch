@@ -1,3 +1,12 @@
+# NOTE (prototype finding): two tag-creation paths were tested and BOTH are
+# rejected by the default GITHUB_TOKEN when the target commit's
+# .github/workflows/ content differs from the current default branch:
+#   git push  -> "refusing to allow a GitHub App to create or update workflow
+#                 .github/workflows/promote.yml without `workflows` permission"
+#   git data API -> HTTP 403 "Resource not accessible by integration"
+# `workflows: write` is NOT a valid GITHUB_TOKEN permission scope (the workflow
+# file fails to parse), so this cannot be permissioned away. Promoting the
+# current HEAD works; promoting an older sha across a workflow change does not.
 name: promote
 
 on:
