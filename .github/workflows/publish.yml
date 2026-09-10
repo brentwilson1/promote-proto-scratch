@@ -34,3 +34,22 @@ jobs:
           echo "inputs.org = '${{ inputs.org }}'"
           echo "inputs.env = '${{ inputs.env }}'"
           echo "inputs.sha = '${{ inputs.sha }}'"
+
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Move pointer tag with the DEFAULT GITHUB_TOKEN
+        if: ${{ inputs.org != '' }}
+        env:
+          ORG: ${{ inputs.org }}
+          ENV: ${{ inputs.env }}
+          SHA: ${{ inputs.sha }}
+        run: |
+          set -euo pipefail
+          POINTER="${ORG}/${ENV}/current"
+          git config user.name  "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git tag -f -a "$POINTER" -m "points at ${SHA}" "$SHA"
+          git push -f origin "refs/tags/${POINTER}"
+          echo "moved pointer ${POINTER} -> ${SHA}"

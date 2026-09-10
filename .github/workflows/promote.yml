@@ -57,6 +57,8 @@ jobs:
 
   call-publish:
     needs: tag
+    permissions:
+      contents: write
     uses: ./.github/workflows/publish.yml
     with:
       org: ${{ inputs.org }}
